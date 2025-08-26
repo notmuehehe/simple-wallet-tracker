@@ -46,6 +46,42 @@ const startTrackWalletPerChain = async (chain: Chain) => {
       console.log(`Transaction: ${log.transactionHash}`)
       console.log(`Explorer: ${chain.explorerUrl}/tx/${log.transactionHash}`)
     })
+
+    provider.on("block", async (blockNumber) => {
+      try {
+        const block = await provider.getBlock(blockNumber)
+        if (block && block.transactions) {
+          for (const txHash of block.transactions) {
+            try {
+              const tx = await provider.getTransaction(txHash)
+              if (tx && tx.value && tx.value > 0) {
+                const isIncoming = tx.to?.toLowerCase() === address.toLowerCase()
+                const isOutgoing = tx.from?.toLowerCase() === address.toLowerCase()
+
+                if (isIncoming || isOutgoing) {
+                  const direction = isIncoming ? "incoming" : "outgoing"
+                  const amount = ethers.formatEther(tx.value)
+
+                  console.log(`\n[${new Date().toISOString()}] New ${direction} transaction`)
+                  console.log(`Network: ${chain.networkName}`)
+                  console.log(`Wallet: ${address}`)
+                  console.log(`Amount: ${amount} ${chain.symbol}`)
+                  console.log(`From: ${tx.from}`)
+                  console.log(`To: ${tx.to}`)
+                  console.log(`Block: ${blockNumber}`)
+                  console.log(`Transaction: ${tx.hash}`)
+                  console.log(`Explorer: ${chain.explorerUrl}/tx/${tx.hash}`)
+                }
+              }
+            } catch {
+              // Skip individual transaction errors
+            }
+          }
+        }
+      } catch {
+        // Ignore block processing errors
+      }
+    })
   }
 }
 
